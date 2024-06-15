@@ -5,6 +5,8 @@ var db = require('./db');
 var beats = require('./beats');
 var notifiers = require('./notifiers');
 
+
+var  serverHealth={};
 function heart(type, options) {
 	var beat = beats[type];
 
@@ -18,7 +20,7 @@ function heart(type, options) {
 	};
 }
 
-function notify(type, options) {
+function notify(type, options,req,res) {
 	var notif = notifiers[type];
 
 	if (!type) {
@@ -28,6 +30,7 @@ function notify(type, options) {
 	return function (failures, callback) {
 		async.each(failures, function (failure, callback) {
 			notif(options, failure, callback);
+			//res.send(failure.url);
 		}, callback);
 	};
 }
@@ -44,7 +47,24 @@ function notification(options) {
 	};
 }
 
-function job(type, array, notify,db) {
+function createResponse(results)
+{
+	
+	var failures = results.filter(function (r) {
+		return !r.success;
+	}).map(e=>e.url);
+
+	var success = results.filter(function (r) {
+		return r.success;
+	}).map(e=>e.url);
+
+	return {
+		"success":success,
+		"failures":failures
+	}
+}
+
+function job(type, array, notify,db,req,res) {
 	var hearts = array.map(function (e) {
 		return heart(type, e);
 	});
@@ -52,20 +72,26 @@ function job(type, array, notify,db) {
 	return function (callback) {
 		async.parallel(hearts, function (err, results) {
 			if (err) {
-				return callback(err);
+				callback(err);
+				next(err);
+				
 			}
-			
-			
+				
 			db.insertMany(results);
-			
-
 		
-
 				var failures = results.filter(function (r) {
 					return !r.success;
 				});
+       
+	
+		
+		
+		notify(failures, callback,req,res);
+		if(res.headersSent !== true)
+		{
+		res.send(createResponse(results));
 
-			notify(failures, callback);
+		}
 
 			
 			
@@ -74,7 +100,7 @@ function job(type, array, notify,db) {
 	};
 }
 
-function  heartbeat(config) {
+function  heartbeat(config,req,res) {
 	if (!config) {
 		throw new Error('config is missing');
 	}
@@ -91,18 +117,20 @@ function  heartbeat(config) {
 	var local =   db(config);
 	var notify = notification(config.notify);
 	var jobs = Object.keys(config.monitor).map(function (k) {
-		return job(k, config.monitor[k], notify,local);
+		return job(k, config.monitor[k], notify,local,req,res);
 	});
 
 	return {
 		start: function () {
 			(function cycle() {
 				var interval = config.interval || 10000;
+				
 				setTimeout(cycle, interval);
 				async.series(jobs, function (err) {
 				
 					if (err) {
 						 logger.error(err);
+						 next(err);
 					}
 				
 				});

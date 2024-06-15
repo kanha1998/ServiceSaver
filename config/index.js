@@ -11,9 +11,13 @@ module.exports = {
 				url: 'https://likeastore.com'
 			},
 			{
-				url: 'https://stage.likeastore.com'
-			}
-		],
+			url: 'https://stage.likeastore.com'
+			},
+			{
+				url: 'https://www.google.com/'
+				}
+			],
+		
 	},
 
 	// notification options
