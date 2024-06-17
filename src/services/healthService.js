@@ -11,7 +11,7 @@ const { Op } = require('sequelize');
 const checkService = async (service) => {
   try {
     const response = await axios.get(service.url);
-    return response.status === 100;
+    return response.status === 200;
   } catch (error) {
     return false;
   }
