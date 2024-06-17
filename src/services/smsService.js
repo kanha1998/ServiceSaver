@@ -6,7 +6,7 @@ const sendSMSAlert = async (service) => {
   await twilioClient.messages.create({
     body: message,
     from: process.env.TWILIO_PHONE_NUMBER,
-    to: 'recipient_phone_number',  // Replace with actual recipient phone number
+    to: '+919679841858', 
   });
 };
 
