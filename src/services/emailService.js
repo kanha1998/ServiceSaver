@@ -22,7 +22,7 @@ const sendAlert = async (service) => {
     <p>Urgent action is required! The following service is down:</p>
     <table border="1" cellpadding="5" cellspacing="0">
       <thead>
-        <tr>
+        <tr style="background-color: #ADD8E6;">
           <th>Service ID</th>
           <th>Service Name</th>
           <th>Service URL</th>
