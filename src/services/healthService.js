@@ -1,8 +1,9 @@
 const schedule = require('node-schedule');
 const axios = require('axios');
 const Service = require('../models/serviceModel');
-const Alert = require('../models/alertModel');
-const emailService = require('./emailService');
+const Environment = require('../models/develop/environment');
+const Alert = require('../models/develop/alertModel');
+const emailService = require('./sendReportEmail');
 const emailPollingService = require('./emailPollingService');
 const alertService = require('./alertService');
 const { Op } = require('sequelize');
@@ -26,7 +27,12 @@ const getStartOfToday = () => {
 // Perform health check on all services
 const performHealthCheck = async () => {
   try {
-    const services = await Service.findAll(); // Retrieve all services
+    const services = await Service.findAll({
+      include: {
+        model: Environment,
+        attributes: ['environment_name','environment_id']
+      }
+    });
     const startOfToday = getStartOfToday();
 
     for (const service of services) {
@@ -34,21 +40,23 @@ const performHealthCheck = async () => {
       const now = new Date();
 
       if (!isHealthy) {
-        const lastAlert = service.lastAlert || new Date(0);
+        const lastAlert = service.last_alert || new Date(0);
         const alertIntervalPassed = now - lastAlert > 15 * 60 * 1000; // 15 minutes interval
 
-        if (!service.isAcknowledged && alertIntervalPassed) {
+        if (!service.is_acknowledged && alertIntervalPassed) {
+          service.last_alert = now;
+          service.alert_count = (service.alert_count || 0) + 1;
+          service.health_status = 'RED';
+          service.updated_by = 'SYSTEM_BOT'
+          service.updated_at = now;
           await alertService.sendAlert(service);
-          service.lastAlert = now;
-          service.alertCount = (service.alertCount || 0) + 1;
-          service.healthStatus = 'RED';
           await service.save(); // Save changes to service
 
           // Check if an alert for this service exists today
           const existingAlert = await Alert.findOne({
             where: {
-              serviceId: service.id,
-              createdAt: {
+              service_id: service.id,
+              created_at: {
                 [Op.gte]: startOfToday
               }
             }
@@ -57,23 +65,29 @@ const performHealthCheck = async () => {
           if (existingAlert) {
             // Update the existing alert
             await existingAlert.update({
-              status: 'triggered',
-              acknowledgedBy: null
+              status: 'TRIGGERED',
+              acknowledged_by: null,
+              environment_id: service.Environment.environment_id,
+              updated_by: "SYSTEM_BOT"
             });
           } else {
             // Create a new alert
             await Alert.create({
-              serviceId: service.id,
-              status: 'triggered'
+              service_id: service.id,
+              status: 'TRIGGERED',
+              environment_id: service.Environment.environment_id,
+              created_by: "SYSTEM_BOT"
             });
           }
         }
       } else {
         // Reset service status if healthy
-        service.alertCount = 0;
-        service.isAcknowledged = false;
-        service.assignedTo = null;
-        service.healthStatus = 'GREEN';
+        service.alert_count = 0;
+        service.is_acknowledged = false;
+        service.assigned_to = null;
+        service.health_status = 'GREEN';
+        service.updated_by = 'SYSTEM_BOT'
+        service.updated_at = now;
         await service.save(); 
       }
     }
@@ -85,7 +99,7 @@ const performHealthCheck = async () => {
 const scheduleHealthChecks = () => {
   schedule.scheduleJob('*/20 * * * * *', performHealthCheck); // Run every 20 seconds
   emailPollingService.scheduleEmailPolling();
-  schedule.scheduleJob('0 */6 * * *', emailService.sendHealthReports); // Run every 6 hours
+  // schedule.scheduleJob('0 */6 * * *', emailService.sendReportEmail); // Run every 6 hours
 };
 
 

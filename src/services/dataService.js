@@ -97,13 +97,28 @@ async function fetchDataAndSendResponse(res, model) {
         return acc;
       }, {});
   
-      return res.json(servicesData);
+      return (servicesData);
     } catch (error) {
       console.error("Error fetching services grouped by service:", error);
       throw new Error("Error fetching services grouped by service");
     }
   }
-  
+  async function updateServiceById(id, updateData) {
+    try {
+      const service = await Service.findByPk(id);
+      if (service) {
+        await service.update(updateData);
+        return service.toJSON();
+      } else {
+        return null;
+      }
+    } catch (error) {
+      console.error("Error updating service:", error);
+      throw new Error("Error updating service");
+    }
+  }
 
-  module.exports = { fetchDataAndSendResponse , fetchServicesGroupedByEnvironment ,fetchServicesGroupedByService };
+  module.exports = { fetchDataAndSendResponse , fetchServicesGroupedByEnvironment ,fetchServicesGroupedByService ,
+    updateServiceById
+  };
   

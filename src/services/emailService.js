@@ -1,8 +1,10 @@
 const nodemailer = require('nodemailer');
-const Service = require('../models/serviceModel');
-const Alert = require('../models/alertModel');
+const Service = require('../models/develop/serviceModel');
+const Alert = require('../models/develop/alertModel');
+const Environment = require('../models/develop/alertModel');
 const moment = require('moment');
 const {Op}  = require('sequelize');
+const { getServicesGroupedByService } = require('../controllers/dataController');
 
 
 const transporter = nodemailer.createTransport({
@@ -14,11 +16,45 @@ const transporter = nodemailer.createTransport({
 });
 
 const sendAlert = async (service) => {
+  const environmentName = service.Environment ? service.Environment.environment_name : service.id;
+  const htmlContent = `
+    <p>Hi Team,</p>
+    <p>Urgent action is required! The following service is down:</p>
+    <table border="1" cellpadding="5" cellspacing="0">
+      <thead>
+        <tr>
+          <th>Service ID</th>
+          <th>Service Name</th>
+          <th>Service URL</th>
+          <th>Environment Name</th>
+          <th>Health Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="background-color: red;">
+          <td>${service.id}</td>
+          <td>${service.name}</td>
+          <td>${service.url}</td>
+          <td>${environmentName}</td>
+          <td>RED</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>Please reply to this email to take ownership of the issue and investigate and resolve it promptly.</p>
+  `;
+  const stakeholdersSet = new Set();
+  const stakeholders = service.stakeholders.split(',').map(email => email.trim());
+  stakeholders.forEach(email => {
+    if (email) {
+      stakeholdersSet.add(email);
+    }
+  });
+  const recipients = Array.from(stakeholdersSet).join(',');
   const mailOptions = {
     from: process.env.EMAIL_USER,
-    to: service.stakeholders.join(','),
+    to:   recipients,
     subject: `Service Alert: ${service.name} is Down`,
-    text: `The service ${service.name} is currently down. Please reply to this email to take ownership of the issue.`,
+    html: htmlContent,
   };
 
   await transporter.sendMail(mailOptions);
@@ -26,7 +62,6 @@ const sendAlert = async (service) => {
 
 const handleEmailReply = async (email) => {
   try {
-
     const textLines = email.text.split('\n');
     let content = '';
     let assignee = '';
@@ -116,20 +151,4 @@ const handleEmailReply = async (email) => {
   }
 };
 
-
-const sendHealthReports = async () => {
-  const services = await Service.findAll();
-
-  for (const service of services) {
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: service.stakeholders.join(','),
-      subject: `Health Report: ${service.name}`,
-      text: `Health report for ${service.name}: \nURL: ${service.url}\nStatus: ${service.isAcknowledged ? 'Down' : 'Up'}`,
-    };
-
-    await transporter.sendMail(mailOptions);
-  }
-};
-
-module.exports = { sendAlert, handleEmailReply, sendHealthReports };
+module.exports = { sendAlert, handleEmailReply };
