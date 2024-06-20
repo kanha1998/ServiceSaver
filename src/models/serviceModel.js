@@ -32,7 +32,11 @@ const Service = sequelize.define('Service', {
   stakeholders: {
     type: DataTypes.JSON,
     allowNull: true
-  }
+  },
+  healthStatus: {
+    type: DataTypes.ENUM('GREEN','YELLOW','RED'),
+    defaultValue: 'GREEN'
+  },
 }, {
   tableName: 'services',
   timestamps: false // Disable timestamps (createdAt and updatedAt)

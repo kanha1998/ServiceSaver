@@ -25,6 +25,10 @@ const Alert = sequelize.define('Alert', {
   acknowledgedBy: {
     type: DataTypes.STRING,
     allowNull: true
+  },
+  updatedAt: {
+    type: DataTypes.DATE,
+    allowNull: true
   }
 }, {
   tableName: 'alerts',

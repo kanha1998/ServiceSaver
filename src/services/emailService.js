@@ -1,7 +1,8 @@
 const nodemailer = require('nodemailer');
 const Service = require('../models/serviceModel');
 const Alert = require('../models/alertModel');
-const { Op } = require('sequelize');
+const moment = require('moment');
+const {Op}  = require('sequelize');
 
 
 const transporter = nodemailer.createTransport({
@@ -25,26 +26,96 @@ const sendAlert = async (service) => {
 
 const handleEmailReply = async (email) => {
   try {
-    const serviceName = email.subject.split(': ')[1].split(' is Down')[0].trim();
-    const service = await Service.findOne({ where: { name: serviceName } });
+
+    const textLines = email.text.split('\n');
+    let content = '';
+    let assignee = '';
+    let serviceName = '';
+    let timestamp = '';
+
+    if (textLines.length > 0) {
+      content = textLines[0].trim();
+
+      const assigneeLineIndex = textLines.findIndex(line => line.includes('Thanks and Regards'));
+      if (assigneeLineIndex !== -1 && assigneeLineIndex < textLines.length - 1) {
+        assignee = textLines[assigneeLineIndex + 1].trim();
+      }
+
+      const serviceLine = textLines.find(line => line.includes('The service'));
+      if (serviceLine) {
+        const match = serviceLine.match(/The service (.+) is currently down/);
+        if (match) {
+          serviceName = match[1];
+        }
+      }
+
+      const timestampLineIndex = textLines.findIndex(line => line.includes('On '));
+      if (timestampLineIndex !== -1) {
+        const timestampString = textLines[timestampLineIndex].replace('On ', '').replace(' at ', ' ');
+        const parsedDate = moment(timestampString, 'ddd, DD MMM YYYY HH:mm');
+        if (parsedDate.isValid()) {
+          timestamp = parsedDate.format('YYYY-MM-DD HH:mm:ss');
+        }
+      }
+    }
+
+    console.log(`Content: ${content}`);
+    console.log(`Assignee: ${assignee}`);
+    console.log(`Service Name: ${serviceName}`);
+    console.log(`UpdateTimestamp: ${timestamp}`);
+
+    const service = await Service.findOne({
+      where: {
+        name: serviceName,
+        healthStatus: {
+          [Op.not]: 'GREEN' 
+        }
+      }
+    });
 
     if (service) {
-      service.assignedTo = email.from.value[0].address;
+      service.assignedTo = assignee;
       service.isAcknowledged = true;
       service.alertCount = 0;
+      service.healthStatus = 'YELLOW';
       await service.save();
 
-      await Alert.update(
-        { acknowledgedBy: email.from.value[0].address, status: 'acknowledged' },
-        { where: { serviceId: service.id, status: 'triggered' } }
-      );
 
-      console.log(`Service ${service.name} acknowledged by ${service.assignedTo} successfully`);
+      let today = moment().startOf('day');
+      let tomorrow = moment(today).add(1, 'day');
+      
+      let alert = await Alert.findOne({ 
+        where: { 
+          serviceId: service.id,
+          status: 'triggered',
+          timestamp: {
+            [Op.gte]: today.toDate(),
+            [Op.lt]: tomorrow.toDate()
+          }
+        } 
+      });
+
+      if (!alert) {
+        alert = await Alert.create({
+          serviceId: service.id,
+          status: 'triggered'
+        });
+      }
+
+      alert.acknowledgedBy = assignee;
+      alert.status = 'acknowledged';
+      alert.updatedAt = timestamp;
+      await alert.save();
+
+      console.log(`Service ${service.name} acknowledged by ${assignee} successfully`);
+    } else {
+      console.log(`Service with name ${serviceName} not found might be in Green State`);
     }
   } catch (error) {
     console.error('Error handling email reply:', error);
   }
 };
+
 
 const sendHealthReports = async () => {
   const services = await Service.findAll();

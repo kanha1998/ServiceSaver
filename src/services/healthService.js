@@ -41,6 +41,7 @@ const performHealthCheck = async () => {
           await alertService.sendAlert(service);
           service.lastAlert = now;
           service.alertCount = (service.alertCount || 0) + 1;
+          service.healthStatus = 'RED';
           await service.save(); // Save changes to service
 
           // Check if an alert for this service exists today
@@ -69,11 +70,11 @@ const performHealthCheck = async () => {
         }
       } else {
         // Reset service status if healthy
-        service.lastAlert = null;
         service.alertCount = 0;
         service.isAcknowledged = false;
         service.assignedTo = null;
-        await service.save(); // Save changes to service
+        service.healthStatus = 'GREEN';
+        await service.save(); 
       }
     }
   } catch (error) {
@@ -83,8 +84,8 @@ const performHealthCheck = async () => {
 // Schedule health checks and email reports
 const scheduleHealthChecks = () => {
   schedule.scheduleJob('*/20 * * * * *', performHealthCheck); // Run every 20 seconds
-  schedule.scheduleJob('0 */6 * * *', emailService.sendHealthReports); // Run every 6 hours
   emailPollingService.scheduleEmailPolling();
+  schedule.scheduleJob('0 */6 * * *', emailService.sendHealthReports); // Run every 6 hours
 };
 
 
