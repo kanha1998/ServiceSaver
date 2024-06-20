@@ -9,14 +9,12 @@ const { scheduleHealthChecks } = require('./services/healthService');
 
 const app = express();
 const port = process.env.PORT || 3000;
-
+app.use(cors());
 app.use(express.json());
 //Routes
 app.use('/serviceSaver/v1.0/data', dataRoutes);
 app.use('/serviceSaver/v1.0/health', healthRoutes);
 app.use('/serviceSaver/v1.0/email', emailRoutes);
-
-// app.use(cors());
 
 connectToDatabase().then(() => {
   app.listen(port, () => {
