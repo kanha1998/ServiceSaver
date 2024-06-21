@@ -67,6 +67,7 @@ const handleEmailReply = async (email) => {
     let assignee = '';
     let serviceName = '';
     let timestamp = '';
+    let serviceId = '';
 
     if (textLines.length > 0) {
       content = textLines[0].trim();
@@ -76,11 +77,17 @@ const handleEmailReply = async (email) => {
         assignee = textLines[assigneeLineIndex + 1].trim();
       }
 
-      const serviceLine = textLines.find(line => line.includes('The service'));
-      if (serviceLine) {
-        const match = serviceLine.match(/The service (.+) is currently down/);
-        if (match) {
-          serviceName = match[1];
+      const serviceDetailsLineIndex = textLines.findIndex(line => line.includes('<td>') && line.includes('</td>'));
+      if (serviceDetailsLineIndex !== -1) {
+        // Extracting the next few lines to parse the service details
+        const serviceDetailsLines = textLines.slice(serviceDetailsLineIndex, serviceDetailsLineIndex + 5);
+        const serviceDetails = serviceDetailsLines.map(line => line.replace(/<[^>]*>/g, '').trim());
+    
+        // Assigning the extracted details to variables
+        if (serviceDetails.length >= 5) {
+          serviceId = serviceDetails[0];
+          serviceName = serviceDetails[1];
+          // Other details like URL, Environment Name, Health Status can be parsed similarly if needed
         }
       }
 
@@ -101,7 +108,7 @@ const handleEmailReply = async (email) => {
 
     const service = await Service.findOne({
       where: {
-        name: serviceName,
+        id: serviceId,
         health_status: {
           [Op.not]: 'GREEN' 
         }
@@ -121,7 +128,7 @@ const handleEmailReply = async (email) => {
       
       let alert = await Alert.findOne({ 
         where: { 
-          service_id: service.id,
+          service_id: serviceId,
           status: 'TRIGGERED',
           created_at: {
             [Op.gte]: today.toDate(),
@@ -132,7 +139,7 @@ const handleEmailReply = async (email) => {
 
       if (!alert) {
         alert = await Alert.create({
-          service_id: service.id,
+          id: serviceId,
           status: 'TRIGGERED',
           updated_by : 'SYSTEMBOT'
         });
@@ -140,7 +147,7 @@ const handleEmailReply = async (email) => {
 
       alert.acknowledged_by = assignee;
       alert.status = 'ACKNOWLEDGED';
-      alert.updated_at = created_at;
+      alert.updated_at = timestamp;
       alert.updated_by = 'SYSTEMBOT';
       await alert.save();
 

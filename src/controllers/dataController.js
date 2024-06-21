@@ -1,10 +1,13 @@
 const { fetchDataAndSendResponse ,fetchServicesGroupedByEnvironment ,fetchServicesGroupedByService,
-  updateServiceById
+  updateServiceById,fetchServicesGroupedByServiceSecond
 } = require('../services/dataService');
 const Service = require('../models/serviceModel');
 const Environment = require('../models/develop/environment');
 const developServiceModel = require('../models/develop/serviceModel');
 
+async function getArrayOfServices(req, res) {
+  await fetchServicesGroupedByServiceSecond(res);
+}
 
 
 async function getServices(req, res) {
@@ -120,5 +123,5 @@ async function updateService(req, res) {
 
 
 module.exports = { getServices ,getDevelopServices ,getServicesGroupedByEnvironment,getServicesGroupedByService,
-  updateService,fetchServicesGroupedByService1,getServiceWithName,getServiceByName
+  updateService,fetchServicesGroupedByService1,getServiceWithName,getServiceByName,getArrayOfServices
 };

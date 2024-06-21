@@ -13,7 +13,7 @@ const sendSMSAlert = async (service) => {
   await twilioClient.messages.create({
     body: message,
     from: process.env.TWILIO_PHONE_NUMBER,
-    to: ['+919679841858','+919178056157']
+    to: ['+919679841858','+919178056157','+918709067448']
   });
 };
 

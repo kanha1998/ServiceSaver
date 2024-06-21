@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { handleReply,sendReportAll ,sendReportByName} = require('../controllers/emailController');
-router.post('/reply', handleReply);
+const { fetchEmails} = require('../services/emailPollingService');
+router.post('/reply', fetchEmails);
 router.get('/sendReport', sendReportAll);
 router.get('/sendReportToService', sendReportByName);
 
