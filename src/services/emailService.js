@@ -102,17 +102,17 @@ const handleEmailReply = async (email) => {
     const service = await Service.findOne({
       where: {
         name: serviceName,
-        healthStatus: {
+        health_status: {
           [Op.not]: 'GREEN' 
         }
       }
     });
 
     if (service) {
-      service.assignedTo = assignee;
-      service.isAcknowledged = true;
-      service.alertCount = 0;
-      service.healthStatus = 'YELLOW';
+      service.assigned_to = assignee;
+      service.is_acknowledged = true;
+      service.alert_count = 0;
+      service.health_status = 'YELLOW';
       await service.save();
 
 
@@ -121,9 +121,9 @@ const handleEmailReply = async (email) => {
       
       let alert = await Alert.findOne({ 
         where: { 
-          serviceId: service.id,
-          status: 'triggered',
-          timestamp: {
+          service_id: service.id,
+          status: 'TRIGGERED',
+          created_at: {
             [Op.gte]: today.toDate(),
             [Op.lt]: tomorrow.toDate()
           }
@@ -132,14 +132,16 @@ const handleEmailReply = async (email) => {
 
       if (!alert) {
         alert = await Alert.create({
-          serviceId: service.id,
-          status: 'triggered'
+          service_id: service.id,
+          status: 'TRIGGERED',
+          updated_by : 'SYSTEMBOT'
         });
       }
 
-      alert.acknowledgedBy = assignee;
-      alert.status = 'acknowledged';
-      alert.updatedAt = timestamp;
+      alert.acknowledged_by = assignee;
+      alert.status = 'ACKNOWLEDGED';
+      alert.updated_at = created_at;
+      alert.updated_by = 'SYSTEMBOT';
       await alert.save();
 
       console.log(`Service ${service.name} acknowledged by ${assignee} successfully`);
