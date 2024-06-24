@@ -98,7 +98,7 @@ const performHealthCheck = async () => {
 // Schedule health checks and email reports
 const scheduleHealthChecks = () => {
   schedule.scheduleJob('*/20 * * * * *', performHealthCheck); // Run every 20 seconds
-  emailPollingService.scheduleEmailPolling();
+  // emailPollingService.scheduleEmailPolling();
   // schedule.scheduleJob('0 */6 * * *', emailService.sendReportEmail); // Run every 6 hours
 };
 

@@ -19,6 +19,6 @@ app.use('/serviceSaver/v1.0/email', emailRoutes);
 connectToDatabase().then(() => {
   app.listen(port, () => {
     console.log(`Server running on port ${port}`);
-    // scheduleHealthChecks(); // Schedule health checks
+    scheduleHealthChecks(); // Schedule health checks
   });
 });
